@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { 
   Users, Calendar, Receipt, Stethoscope, 
   Plus, Loader2, Clock, CheckCircle, XCircle, Check, 
-  ArrowUpRight, TrendingUp, UserCheck
+  ArrowUpRight, TrendingUp, UserCheck, ChevronDown,
+  FileText, Settings
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { AddAppointmentModal } from '@/components/dashboard/AddAppointmentModal';
-import { getInitials } from '@/lib/utils';
+import { getInitials, cn } from '@/lib/utils';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { isEffectivelyOffline } from '@/hooks/useNetworkStatus';
@@ -211,169 +212,189 @@ export default function DashboardPage() {
   return (
     <div className="space-y-10 max-w-[1600px] mx-auto animate-in fade-in duration-700 pb-20">
       
-      {/* Premium Header Section */}
-      <div className="relative overflow-hidden bg-white dark:bg-slate-900 p-8 sm:p-10 rounded-[3rem] border border-slate-100 dark:border-slate-800 shadow-[0_20px_50px_rgba(0,0,0,0.02)]">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
-          <div className="space-y-2">
-            <Badge className="bg-primary/10 text-primary border-none rounded-lg px-3 py-1 text-[10px] font-black uppercase tracking-widest mb-2">ClinicOS Dashboard</Badge>
-            <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-white leading-tight">
-              أهلاً بك، <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-600">{profile?.full_name?.split(' ')[0] ?? 'دكتور'}</span>
-            </h1>
-            <p className="text-slate-500 text-lg font-medium max-w-xl">لديك {data?.latestAppointments?.filter((a:any) => a.status === 'pending').length ?? 0} مواعيد تنتظر التأكيد اليوم. لنقم بإنجازها!</p>
+      {/* Top Professional Header */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-10 gap-6">
+        <div>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+            مرحباً، {profile?.full_name ?? 'دكتور'}
+          </h1>
+          <p className="text-slate-500 font-medium mt-1">إليك نظرة شاملة على أداء العيادة اليوم {new Date().toLocaleDateString('ar-SA', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-2 bg-white dark:bg-slate-900 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-bold text-slate-600 dark:text-slate-400">النظام متصل</span>
           </div>
           <Button 
-            size="lg" 
-            className="rounded-[2rem] h-16 px-10 shadow-2xl shadow-primary/30 hover:shadow-primary/40 transition-all hover:scale-105 active:scale-95 bg-primary text-white font-black text-lg gap-3" 
+            className="rounded-xl h-12 px-6 font-black gap-2 shadow-lg shadow-primary/20" 
             onClick={() => setIsModalOpen(true)}
           >
-            <Plus className="h-6 w-6" />
-            حجز سريع
+            <Plus className="h-5 w-5" /> حجز موعد جديد
           </Button>
         </div>
-        {/* Background Accent */}
-        <div className="absolute top-[-50%] right-[-10%] w-[40%] h-[150%] bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
       </div>
 
-      {/* KPI Section */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-        {statCards.map((s) => (
-          <Card key={s.title} className="group border-none bg-white dark:bg-slate-900/50 shadow-[0_10px_30px_rgba(0,0,0,0.02)] rounded-[2.5rem] hover:shadow-xl hover:shadow-primary/5 transition-all duration-500 cursor-default">
-            <CardContent className="p-8">
-              <div className="flex justify-between items-start mb-6">
-                <div className={`${s.bg} ${s.color} p-4 rounded-3xl transition-transform group-hover:scale-110 duration-500`}>
-                  <s.icon className="h-7 w-7" />
-                </div>
-                <Badge variant="outline" className="rounded-full px-3 border-slate-100 text-slate-400 font-bold text-[10px]">{s.trend}</Badge>
+      {/* Stats Grid - Cleaner & More Informative */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        {statCards.map((stat, i) => (
+          <div key={i} className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-all hover:shadow-md">
+            <div className="flex items-center justify-between mb-4">
+              <div className={cn("p-2.5 rounded-lg", stat.bg)}>
+                <stat.icon className={cn("h-5 w-5", stat.color)} />
               </div>
-              <div className="space-y-1">
-                <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">{s.title}</p>
-                <p className="text-3xl font-black text-slate-900 dark:text-white">{s.value}</p>
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">{stat.trend}</span>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">{stat.title}</p>
+            <h3 className="text-2xl font-black text-slate-900 dark:text-white tabular-nums">{stat.value}</h3>
+          </div>
         ))}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-        {/* Smooth Appointment List */}
-        <Card className="xl:col-span-8 rounded-[3rem] border-none bg-white dark:bg-slate-900 shadow-[0_20px_50px_rgba(0,0,0,0.02)] overflow-hidden">
-          <CardHeader className="p-10 pb-4 flex flex-row items-center justify-between">
-            <div className="space-y-1">
-              <CardTitle className="text-2xl font-black flex items-center gap-3">
-                <Clock className="h-6 w-6 text-primary" />
-                المواعيد الأخيرة
-              </CardTitle>
-              <CardDescription className="text-slate-400 font-medium">متابعة الحالات وتأكيد الحضور والتحصيل المالي.</CardDescription>
+        {/* Main List Area */}
+        <div className="xl:col-span-8 space-y-6">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Calendar className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-black text-slate-900 dark:text-white">جدول المواعيد اليوم</h2>
+              </div>
+              <Link href="/dashboard/appointments">
+                <Button variant="link" className="text-primary font-bold">عرض الجدول الكامل</Button>
+              </Link>
             </div>
-            <Link href="/dashboard/appointments">
-               <Button variant="ghost" className="rounded-2xl text-primary font-bold gap-2">عرض الكل <ArrowUpRight className="h-4 w-4" /></Button>
-            </Link>
-          </CardHeader>
-          <CardContent className="p-4 sm:p-10 pt-4">
-            <div className="space-y-4">
-              {(data?.latestAppointments?.length ?? 0) > 0 ? (
-                data!.latestAppointments.map((apt: any) => (
-                  <div key={apt.id} className="group relative flex flex-col sm:flex-row sm:items-center justify-between p-6 rounded-[2rem] bg-slate-50/50 dark:bg-slate-800/30 border border-transparent hover:border-primary/10 hover:bg-white dark:hover:bg-slate-800 transition-all duration-300 gap-6">
-                    <div className="flex items-center gap-5">
-                      <div className="h-16 w-16 rounded-[1.5rem] bg-white dark:bg-slate-700 shadow-sm flex items-center justify-center text-primary text-xl font-black group-hover:bg-primary group-hover:text-white transition-all duration-300">
-                        {getInitials(apt.manual_patient_name || 'M')}
+            
+            <div className="p-2 sm:p-4">
+              {data?.latestAppointments && data.latestAppointments.length > 0 ? (
+                <div className="divide-y divide-slate-50 dark:divide-slate-800/50">
+                  {data.latestAppointments.slice(0, 8).map((apt: any) => (
+                    <div key={apt.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors rounded-xl gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 font-black text-lg shrink-0">
+                          {getInitials(apt.manual_patient_name || 'M')}
+                        </div>
+                        <div>
+                          <div className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-lg">
+                            {apt.manual_patient_name || 'مريض مجهول'}
+                            {apt._local && <Badge variant="outline" className="text-[9px] h-4 bg-amber-50 text-amber-600 border-amber-100">أوفلاين</Badge>}
+                          </div>
+                          <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-400 font-medium">
+                            <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {new Date(apt.start_time).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span className="h-1 w-1 rounded-full bg-slate-300" />
+                            <span>{apt.type || 'كشف عام'}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="space-y-1">
-                        <div className="font-black text-lg text-slate-800 dark:text-white flex items-center gap-2">
-                          {apt.manual_patient_name || 'مريض مجهول'}
-                          {apt._local && (
-                            <Badge className="bg-amber-500 hover:bg-amber-600 text-[10px] font-black border-none rounded-md px-2 py-0">محلي</Badge>
+
+                      <div className="flex items-center justify-between md:justify-end gap-6">
+                        <div className="text-start md:text-end">
+                          <p className="text-[10px] text-slate-400 font-black uppercase tracking-wider">المبلغ</p>
+                          <p className="text-sm font-black text-emerald-600 tabular-nums">{apt.amount || 0} ريال</p>
+                        </div>
+                        
+                        <div className="min-w-[120px] flex justify-end">
+                          {apt.status === 'confirmed' ? (
+                            <Badge className="bg-emerald-500/10 text-emerald-600 border-none px-4 py-2 rounded-xl font-black text-[10px] gap-2">
+                              <Check className="h-3.5 w-3.5" /> تم التحصيل
+                            </Badge>
+                          ) : apt.status === 'cancelled' ? (
+                            <Badge className="bg-red-500/10 text-red-600 border-none px-4 py-2 rounded-xl font-black text-[10px] gap-2">
+                              <XCircle className="h-3.5 w-3.5" /> ملغي
+                            </Badge>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-9 rounded-xl text-[10px] font-black border-emerald-100 text-emerald-600 hover:bg-emerald-50"
+                                onClick={() => updateStatus.mutate({ id: apt.id, status: 'confirmed' })}
+                                disabled={updateStatus.isPending}
+                              >
+                                تأكيد
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-9 w-9 p-0 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50"
+                                onClick={() => updateStatus.mutate({ id: apt.id, status: 'cancelled' })}
+                                disabled={updateStatus.isPending}
+                              >
+                                <XCircle className="h-4.5 w-4.5" />
+                              </Button>
+                            </div>
                           )}
                         </div>
-                        <div className="flex items-center gap-4 text-sm font-bold text-slate-400">
-                          <span className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> {new Date(apt.start_time).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}</span>
-                          <span className="text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-0.5 rounded-full">{apt.amount || 0} ريال</span>
-                        </div>
                       </div>
                     </div>
-                    
-                    <div className="flex items-center gap-3">
-                      {apt.status === 'confirmed' ? (
-                        <div className="flex items-center gap-2 text-emerald-600 font-black px-6 py-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl">
-                          <CheckCircle className="h-5 w-5" /> مؤكد
-                        </div>
-                      ) : apt.status === 'cancelled' ? (
-                        <div className="flex items-center gap-2 text-red-500 font-black px-6 py-2 bg-red-50 dark:bg-red-900/20 rounded-2xl">
-                          <XCircle className="h-5 w-5" /> ملغي
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-3">
-                          <Button 
-                            variant="ghost" 
-                            className="rounded-2xl h-12 px-6 text-red-500 hover:bg-red-50 font-bold transition-colors"
-                            onClick={() => updateStatus.mutate({ id: apt.id, status: 'cancelled' })}
-                            disabled={updateStatus.isPending}
-                          >
-                            إلغاء
-                          </Button>
-                          <Button 
-                            className="rounded-2xl h-12 px-6 bg-slate-900 text-white dark:bg-white dark:text-slate-900 hover:opacity-90 font-black shadow-lg transition-transform active:scale-95"
-                            onClick={() => updateStatus.mutate({ id: apt.id, status: 'confirmed' })}
-                            disabled={updateStatus.isPending}
-                          >
-                            تأكيد الحضور
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               ) : (
-                <div className="py-20 text-center flex flex-col items-center gap-4">
-                   <div className="h-20 w-20 bg-slate-50 rounded-full flex items-center justify-center">
-                      <Calendar className="h-10 w-10 text-slate-200" />
-                   </div>
-                   <p className="text-slate-400 font-bold">لا توجد مواعيد مسجلة اليوم</p>
+                <div className="py-20 text-center text-slate-400 font-bold flex flex-col items-center gap-4">
+                  <div className="h-16 w-16 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center">
+                    <Calendar className="h-8 w-8 text-slate-200" />
+                  </div>
+                  <span>لا توجد مواعيد مسجلة لليوم</span>
                 </div>
               )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        {/* Small Progress / Quick Actions */}
-        <div className="xl:col-span-4 space-y-8">
-           <Card className="rounded-[3rem] border-none bg-primary p-10 text-white shadow-2xl shadow-primary/20 relative overflow-hidden group">
-              <div className="relative z-10 space-y-6">
-                 <div className="p-3 bg-white/20 rounded-2xl w-fit">
-                    <TrendingUp className="h-6 w-6" />
-                 </div>
-                 <div className="space-y-2">
-                    <h3 className="text-2xl font-black">نمو العيادة</h3>
-                    <p className="text-white/70 font-medium">أداء عيادتك ارتفع بنسبة 24% عن الشهر الماضي. عمل رائع!</p>
-                 </div>
-                 <Button className="w-full h-14 bg-white text-primary font-black rounded-2xl hover:bg-white/90">مشاهدة التقارير</Button>
+        {/* Quick Actions & Info Sidebar */}
+        <div className="xl:col-span-4 space-y-6">
+          <div className="bg-slate-950 text-white rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-1000" />
+            <div className="relative z-10">
+              <div className="p-3 bg-white/10 rounded-2xl w-fit mb-6">
+                <TrendingUp className="h-6 w-6 text-blue-400" />
               </div>
-              <div className="absolute bottom-[-20%] right-[-10%] w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000" />
-           </Card>
+              <h3 className="text-2xl font-black mb-2">إحصائيات ذكية</h3>
+              <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">أداء العيادة ارتفع بنسبة 24% عن الشهر الماضي. نظام التقارير جاهز للمراجعة.</p>
+              
+              <div className="space-y-4 mb-8">
+                {[
+                  { label: 'سعة العيادة اليوم', value: '85%', color: 'bg-primary' },
+                  { label: 'معدل رضا المرضى', value: '98%', color: 'bg-emerald-500' }
+                ].map((item, i) => (
+                  <div key={i} className="space-y-2">
+                    <div className="flex justify-between text-xs font-bold">
+                      <span className="text-slate-400">{item.label}</span>
+                      <span>{item.value}</span>
+                    </div>
+                    <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                      <div className={cn("h-full rounded-full", item.color)} style={{ width: item.value }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <Button className="w-full h-14 bg-white text-slate-950 font-black rounded-2xl hover:bg-slate-100 shadow-xl">عرض التقارير التفصيلية</Button>
+            </div>
+          </div>
 
-           <Card className="rounded-[3rem] border-none bg-white dark:bg-slate-900 shadow-[0_20px_50px_rgba(0,0,0,0.02)] p-10">
-              <CardTitle className="text-xl font-black mb-6 flex items-center gap-2">
-                <UserCheck className="h-6 w-6 text-indigo-500" />
-                إحصائيات سريعة
-              </CardTitle>
-              <div className="space-y-6">
-                 {[
-                   { label: 'المرضى الجدد', value: '14 مريض', progress: 65, color: 'bg-indigo-500' },
-                   { label: 'معدل الحضور', value: '92%', progress: 92, color: 'bg-emerald-500' },
-                   { label: 'المواعيد الملغاة', value: '3 مواعيد', progress: 15, color: 'bg-red-400' }
-                 ].map((item, i) => (
-                   <div key={i} className="space-y-2">
-                      <div className="flex justify-between text-sm font-bold">
-                         <span className="text-slate-500">{item.label}</span>
-                         <span className="text-slate-900 dark:text-white">{item.value}</span>
-                      </div>
-                      <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                         <div className={`h-full ${item.color} rounded-full`} style={{ width: `${item.progress}%` }} />
-                      </div>
-                   </div>
-                 ))}
-              </div>
-           </Card>
+          <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 border border-slate-200 dark:border-slate-800 shadow-sm">
+            <h3 className="font-black text-xl mb-6 flex items-center gap-3">
+              <Plus className="h-5 w-5 text-primary" />
+              روابط سريعة
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { label: 'إضافة مريض', icon: Users, color: 'text-blue-500', bg: 'bg-blue-50/50' },
+                { label: 'تقرير مالي', icon: Receipt, color: 'text-emerald-500', bg: 'bg-emerald-50/50' },
+                { label: 'سجل طبي', icon: FileText, color: 'text-amber-500', bg: 'bg-amber-50/50' },
+                { label: 'الإعدادات', icon: Settings, color: 'text-slate-500', bg: 'bg-slate-50/50' },
+              ].map((link, i) => (
+                <button key={i} className="flex flex-col items-center gap-3 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all hover:scale-[1.02] group">
+                  <div className={cn("p-3 rounded-xl transition-colors group-hover:bg-white dark:group-hover:bg-slate-700 shadow-sm", link.bg)}>
+                    <link.icon className={cn("h-6 w-6", link.color)} />
+                  </div>
+                  <span className="text-xs font-black text-slate-600 dark:text-slate-400">{link.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 

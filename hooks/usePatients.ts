@@ -102,7 +102,7 @@ export function usePatients() {
         };
 
         await offlineDb.patients.put(payload);
-        
+
         await offlineDb.offline_queue.add({
           action: 'INSERT_PATIENT',
           table: 'patients',
@@ -146,7 +146,7 @@ export function usePatients() {
       if (await isEffectivelyOffline()) {
         const now = new Date().toISOString();
         const existing = await offlineDb.patients.get(id);
-        
+
         if (existing) {
           const updated = { ...existing, ...input, updated_at: now, _synced: 0 as const };
           await offlineDb.patients.put(updated);
@@ -197,7 +197,7 @@ export function usePatients() {
           // Soft delete locally (we don't sync this back yet, but if needed we can queue it)
           await offlineDb.patients.delete(id);
         }
-        
+
         await offlineDb.offline_queue.add({
           action: 'UPDATE_PATIENT', // Soft delete is an update
           table: 'patients',

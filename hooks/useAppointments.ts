@@ -33,7 +33,7 @@ export function useAppointments() {
         const db = offlineDb;
         const now = new Date().toISOString();
         const localId = generateLocalId();
-        
+
         // Attempt to find clinicId from cache if state is missing
         let localClinicId = clinicId;
         if (!localClinicId && user?.id) {
@@ -42,7 +42,7 @@ export function useAppointments() {
             localClinicId = JSON.parse(cachedProfile).clinic_id;
           }
         }
-        
+
         if (!localClinicId) {
           throw new Error('تعذر تحديد العيادة. يرجى الانتظار حتى تحميل البيانات.');
         }
@@ -119,7 +119,7 @@ export function useAppointments() {
 
       // ─── ONLINE PATH (original logic, unchanged) ───────────────────────
       let currentClinicId = clinicId;
-      
+
       // Fallback: If clinicId is missing in state, fetch it directly
       if (!currentClinicId) {
         const { data: { session } } = await supabase.auth.getSession();
@@ -140,7 +140,7 @@ export function useAppointments() {
         .insert({
           clinic_id: currentClinicId,
           full_name: data.manual_patient_name,
-          phone: '', 
+          phone: '',
           email: '',
           gender: 'other',
           date_of_birth: new Date().toISOString().split('T')[0],
@@ -163,7 +163,7 @@ export function useAppointments() {
           .select('id')
           .eq('clinic_id', currentClinicId)
           .limit(1);
-        
+
         if (doctors && doctors.length > 0) {
           doctorId = doctors[0].id;
         } else {
@@ -188,7 +188,7 @@ export function useAppointments() {
         .from('appointments')
         .insert({
           clinic_id: currentClinicId,
-          patient_id: patient?.id || null, 
+          patient_id: patient?.id || null,
           doctor_id: doctorId,
           manual_patient_name: data.manual_patient_name,
           start_time: data.start_time,

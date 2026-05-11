@@ -32,14 +32,14 @@ export function useAuth() {
         .select('*')
         .eq('id', userId)
         .single();
-      
+
       if (error) {
         console.warn('Profile fetch error (possibly offline):', error.message);
         // Return cached profile if available
         const cached = localStorage.getItem(`profile_${userId}`);
         return cached ? JSON.parse(cached) : null;
       }
-      
+
       if (data) {
         localStorage.setItem(`profile_${userId}`, JSON.stringify(data));
       }
@@ -57,7 +57,7 @@ export function useAuth() {
         // Immediate local fallback for faster load and offline support
         const cached = localStorage.getItem(`profile_${session.user.id}`);
         const initialProfile = cached ? JSON.parse(cached) : null;
-        
+
         setState(s => ({
           ...s,
           user: session.user,
@@ -133,7 +133,7 @@ export function useAuth() {
   const signIn = async (email: string, password: string) => {
     console.log('Attempting login for:', email);
     setState(s => ({ ...s, loading: true }));
-    
+
     try {
       // EMERGENCY BYPASS: If server hangs for more than 4s, force move to dashboard
       // This breaks the "Database schema error" loop
@@ -177,7 +177,8 @@ export function useAuth() {
         },
       });
       if (!error) {
-        window.location.href = '/login?message=check-email';
+        // Since email confirmation is disabled, user is logged in immediately
+        window.location.replace('/dashboard');
       } else {
         setState(s => ({ ...s, loading: false }));
       }

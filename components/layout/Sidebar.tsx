@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { LogOut } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface SidebarProps {
   open: boolean;
@@ -35,70 +36,76 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
   return (
     <>
-      {/* Mobile Backdrop */}
+      {/* Professional Backdrop */}
       {open && (
         <div 
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[45] lg:hidden animate-in fade-in duration-300"
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[45] lg:hidden animate-in fade-in duration-300"
           onClick={onClose}
         />
       )}
 
       <aside className={cn(
-        "fixed inset-y-0 right-0 z-50 w-72 bg-[#0f172a] text-white flex flex-col border-e border-white/10 transition-transform duration-300 lg:static lg:translate-x-0",
+        "fixed inset-y-0 right-0 z-50 w-72 bg-slate-900 text-white flex flex-col border-e border-white/5 transition-transform duration-300 ease-in-out lg:static lg:translate-x-0",
         open ? "translate-x-0" : "translate-x-full"
       )}>
-        {/* Logo */}
-        <div className="h-20 flex items-center justify-between px-6 border-b border-white/5">
-          <div className="flex items-center">
-            <div className="bg-blue-600 p-2 rounded-xl me-3">
+        {/* Professional Header */}
+        <div className="h-24 flex items-center px-8 border-b border-white/5">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
               <Activity className="h-6 w-6 text-white" />
             </div>
-            <span className="text-xl font-bold">ClinicOS</span>
+            <div className="flex flex-col">
+              <span className="text-xl font-black tracking-tight leading-none uppercase">Clinic<span className="text-primary">OS</span></span>
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Enterprise Edition</span>
+            </div>
           </div>
-          <button onClick={onClose} className="lg:hidden p-2 text-slate-400 hover:text-white">
+          <button onClick={onClose} className="lg:hidden ms-auto p-2 text-slate-400 hover:text-white">
             <X className="h-6 w-6" />
           </button>
         </div>
 
-      {/* Nav */}
-      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-xl transition-all",
-                isActive ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "text-slate-400 hover:bg-white/5 hover:text-white"
-              )}
-            >
-              <item.icon className="h-5 w-5" />
-              <span className="font-medium">{item.label}</span>
-            </Link>
-          );
-        })}
+        {/* Navigation - High Clarity */}
+        <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar">
+          {navItems.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => { if (window.innerWidth < 1024) onClose(); }}
+                className={cn(
+                  "group flex items-center gap-3 px-5 py-3 rounded-xl transition-all duration-200",
+                  isActive 
+                    ? "bg-primary text-white shadow-md" 
+                    : "text-slate-400 hover:bg-white/5 hover:text-white"
+                )}
+              >
+                <item.icon className={cn("h-5 w-5", isActive ? "text-white" : "text-slate-500 group-hover:text-white")} />
+                <span className="font-bold text-sm">{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
 
-        <button
-          onClick={() => {
-            console.log('Sidebar logout clicked');
-            signOut();
-          }}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-red-400 hover:bg-red-400/10 hover:text-red-300 mt-4 relative z-[100] cursor-pointer"
-        >
-          <LogOut className="h-5 w-5" />
-          <span className="font-medium">تسجيل الخروج</span>
-        </button>
-      </nav>
+        {/* Professional Footer Actions */}
+        <div className="p-4 space-y-4">
+          <Link href="/dashboard/subscription" className="block p-5 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all group">
+             <div className="flex items-center gap-3 mb-2">
+                <CreditCard className="h-4 w-4 text-primary" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">نظام الاشتراك</span>
+             </div>
+             <p className="text-xs font-bold text-slate-200">باقة العيادة الذكية نشطة</p>
+          </Link>
 
-      {/* Footer */}
-      <div className="p-4 border-t border-white/5">
-        <Link href="/dashboard/subscription" className="block bg-white/5 hover:bg-white/10 transition-colors p-4 rounded-2xl border border-white/5">
-           <Badge className="bg-blue-600/20 text-blue-400 border-none mb-2 hover:bg-blue-600/30">إدارة الاشتراك</Badge>
-           <p className="text-sm font-bold">تجديد أو ترقية الباقة</p>
-        </Link>
-      </div>
-    </aside>
+          <button
+            onClick={() => signOut()}
+            className="w-full flex items-center gap-3 px-6 py-4 rounded-xl text-red-400 hover:bg-red-500/10 transition-colors font-bold text-sm"
+          >
+            <LogOut className="h-5 w-5" />
+            <span>تسجيل الخروج</span>
+          </button>
+        </div>
+      </aside>
     </>
   );
 }
