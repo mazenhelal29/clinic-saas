@@ -34,14 +34,31 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const { signOut } = useAuth();
 
   return (
-    <aside className="w-72 h-screen bg-[#0f172a] text-white flex flex-col border-e border-white/10 shrink-0 relative z-50">
-      {/* Logo */}
-      <div className="h-20 flex items-center px-6 border-b border-white/5">
-        <div className="bg-blue-600 p-2 rounded-xl me-3">
-          <Activity className="h-6 w-6 text-white" />
+    <>
+      {/* Mobile Backdrop */}
+      {open && (
+        <div 
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[45] lg:hidden animate-in fade-in duration-300"
+          onClick={onClose}
+        />
+      )}
+
+      <aside className={cn(
+        "fixed inset-y-0 right-0 z-50 w-72 bg-[#0f172a] text-white flex flex-col border-e border-white/10 transition-transform duration-300 lg:static lg:translate-x-0",
+        open ? "translate-x-0" : "translate-x-full"
+      )}>
+        {/* Logo */}
+        <div className="h-20 flex items-center justify-between px-6 border-b border-white/5">
+          <div className="flex items-center">
+            <div className="bg-blue-600 p-2 rounded-xl me-3">
+              <Activity className="h-6 w-6 text-white" />
+            </div>
+            <span className="text-xl font-bold">ClinicOS</span>
+          </div>
+          <button onClick={onClose} className="lg:hidden p-2 text-slate-400 hover:text-white">
+            <X className="h-6 w-6" />
+          </button>
         </div>
-        <span className="text-xl font-bold">ClinicOS</span>
-      </div>
 
       {/* Nav */}
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
@@ -82,5 +99,6 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         </Link>
       </div>
     </aside>
+    </>
   );
 }
