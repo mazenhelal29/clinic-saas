@@ -26,6 +26,7 @@ const APP_SHELL = [
   '/dashboard',
   '/dashboard/patients',
   '/dashboard/appointments',
+  '/super-admin',
 ];
 
 
