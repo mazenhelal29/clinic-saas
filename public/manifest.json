@@ -1,0 +1,20 @@
+{
+  "name": "ClinicOS — نظام إدارة العيادات",
+  "short_name": "ClinicOS",
+  "description": "نظام متكامل لإدارة العيادات الطبية — مواعيد، مرضى، فواتير",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0a0a0f",
+  "theme_color": "#6366f1",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": ["medical", "business", "productivity"]
+}
