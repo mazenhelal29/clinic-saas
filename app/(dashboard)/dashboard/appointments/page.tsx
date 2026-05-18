@@ -17,7 +17,7 @@ import { getInitials, withTimeout } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
 export default function AppointmentsPage() {
-  const { clinicId } = useAuth();
+  const { clinicId, loading } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { toast } = useToast();
@@ -59,8 +59,9 @@ export default function AppointmentsPage() {
         if (data && data.length > 0) {
           try {
             const { default: offlineDb } = await import('@/lib/db/offline-db');
-            const toPut = data.map((a: any) => ({ ...a, _synced: 1 as const }));
-            await offlineDb.appointments.bulkPut(toPut);
+            const pendingApts = new Set(await offlineDb.appointments.where('_synced').equals(0).primaryKeys());
+            const toPut = data.filter((a: any) => !pendingApts.has(a.id)).map((a: any) => ({ ...a, _synced: 1 as const }));
+            if (toPut.length > 0) await offlineDb.appointments.bulkPut(toPut);
           } catch (e) {
             console.warn('Failed to cache appointments locally', e);
           }
@@ -101,8 +102,10 @@ export default function AppointmentsPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['appointments', clinicId] });
-      qc.invalidateQueries({ queryKey: ['dashboard-data', clinicId] });
+      qc.refetchQueries({ queryKey: ['appointments'] });
+      qc.refetchQueries({ queryKey: ['dashboard-data'] });
+      qc.refetchQueries({ queryKey: ['today-waiting-queue'] });
+      qc.refetchQueries({ queryKey: ['reports-data'] });
       toast({ title: 'تم التحديث', description: 'تم تحديث حالة الموعد بنجاح.' });
     }
   });
@@ -111,7 +114,7 @@ export default function AppointmentsPage() {
     apt.manual_patient_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (isLoading) {
+  if (loading || !clinicId || isLoading) {
     return (
       <div className="h-[80vh] flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

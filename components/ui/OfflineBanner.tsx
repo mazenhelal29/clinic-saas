@@ -1,107 +1,81 @@
 'use client';
 
-/**
- * OfflineBanner.tsx
- * Non-intrusive status bar shown when the app detects no internet connection.
- * Disappears automatically once connectivity is restored.
- * Uses useOfflineSync to trigger queue flush and show sync progress.
- */
-import { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { WifiOff, RefreshCw } from 'lucide-react';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
-import { WifiOff, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-type SyncState = 'idle' | 'syncing' | 'done';
-
+/**
+ * OfflineBanner component
+ * Displays a sticky notification at the bottom when the user is offline.
+ * Transitions to a "Back Online" message briefly when connection is restored.
+ */
 export function OfflineBanner() {
   const { isOnline } = useOfflineSync();
-  const [syncState, setSyncState]   = useState<SyncState>('idle');
-  const [visible, setVisible]       = useState(false);
-  const [pendingCount, setPending]  = useState(0);
+  const wasOfflineRef = useRef(false);
+  const [showRestoredState, setShowRestoredState] = useState(false);
 
-  // Refresh pending count from IndexedDB
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    async function checkQueue() {
-      try {
-        const { default: offlineDb } = await import('@/lib/db/offline-db');
-        const count = await offlineDb.offline_queue.count();
-        setPending(count);
-      } catch {
-        // ignore if DB not ready
-      }
-    }
-
-    const timer = setInterval(checkQueue, 3000);
-    checkQueue();
-    return () => clearInterval(timer);
-  }, []);
-
-  // Show banner when offline; on reconnect briefly show "syncing" then "done"
   useEffect(() => {
     if (!isOnline) {
-      setVisible(true);
-      setSyncState('idle');
-    } else {
-      if (visible) {
-        // Was offline, now online → show syncing feedback
-        setSyncState('syncing');
-        setTimeout(() => {
-          setSyncState('done');
-          setTimeout(() => {
-            setVisible(false);
-            setSyncState('idle');
-          }, 2500);
-        }, 2000);
-      }
+      wasOfflineRef.current = true;
+      return;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    if (wasOfflineRef.current) {
+      const showTimer = window.setTimeout(() => setShowRestoredState(true), 0);
+      const hideTimer = window.setTimeout(() => {
+        setShowRestoredState(false);
+        wasOfflineRef.current = false;
+      }, 4000);
+
+      return () => {
+        window.clearTimeout(showTimer);
+        window.clearTimeout(hideTimer);
+      };
+    }
   }, [isOnline]);
 
-  if (!visible) return null;
+  if (isOnline && !showRestoredState) return null;
 
   return (
     <div
-      role="status"
-      aria-live="polite"
-      className={`
-        fixed bottom-4 left-1/2 -translate-x-1/2 z-[9999]
-        flex items-center gap-3 px-5 py-3
-        rounded-2xl shadow-2xl border backdrop-blur-sm
-        text-sm font-medium
-        transition-all duration-500 ease-out
-        ${syncState === 'done'
-          ? 'bg-emerald-950/90 border-emerald-700 text-emerald-200'
-          : 'bg-slate-950/90 border-slate-700 text-slate-200'}
-      `}
+      className={cn(
+        "fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-md flex items-center justify-between gap-4 px-5 py-4 rounded-xl shadow-2xl border backdrop-blur-md animate-in slide-in-from-bottom-8 duration-500 ease-out",
+        isOnline 
+          ? "bg-emerald-50/90 border-emerald-200 text-emerald-900 shadow-emerald-500/10" 
+          : "bg-amber-50/90 border-amber-200 text-amber-900 shadow-amber-500/10"
+      )}
     >
-      {syncState === 'idle' && (
-        <>
-          <WifiOff className="w-4 h-4 text-amber-400 shrink-0" />
-          <span>
-            أنت غير متصل بالإنترنت
-            {pendingCount > 0 && (
-              <span className="ms-2 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-xs">
-                {pendingCount} عملية معلقة
-              </span>
-            )}
-          </span>
-          <span className="text-slate-400 text-xs">البيانات تُحفظ محلياً</span>
-        </>
-      )}
-
-      {syncState === 'syncing' && (
-        <>
-          <RefreshCw className="w-4 h-4 text-blue-400 shrink-0 animate-spin" />
-          <span>جارٍ المزامنة مع السيرفر…</span>
-        </>
-      )}
-
-      {syncState === 'done' && (
-        <>
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>تم المزامنة بنجاح ✓</span>
-        </>
+      <div className="flex items-center gap-4">
+        <div className={cn(
+          "p-2.5 rounded-full shrink-0",
+          isOnline ? "bg-emerald-100" : "bg-amber-100"
+        )}>
+          {isOnline ? (
+            <RefreshCw className="w-5 h-5 text-emerald-600 animate-spin" style={{ animationDuration: '4s' }} />
+          ) : (
+            <WifiOff className="w-5 h-5 text-amber-600" />
+          )}
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <p className="text-[15px] font-bold leading-tight">
+            {isOnline ? 'تم استعادة الاتصال بنجاح' : 'أنت تعمل في وضع عدم الاتصال'}
+          </p>
+          <p className="text-xs font-medium opacity-80 leading-relaxed">
+            {isOnline 
+              ? 'يتم الآن مزامنة بياناتك مع السيرفر...' 
+              : 'يمكنك الاستمرار في استخدام النظام، سيتم حفظ التغييرات محلياً ومزامنتها فور عودة الإنترنت.'}
+          </p>
+        </div>
+      </div>
+      
+      {!isOnline && (
+        <button 
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-[13px] font-bold rounded-lg transition-all active:scale-95 shrink-0 shadow-sm"
+        >
+          تحديث
+        </button>
       )}
     </div>
   );

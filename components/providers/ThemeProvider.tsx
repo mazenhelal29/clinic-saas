@@ -1,6 +1,15 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 
 type Theme = 'dark' | 'light' | 'system';
 
@@ -17,38 +26,55 @@ interface ThemeProviderProps {
 
 const ThemeProviderContext = createContext<ThemeProviderContextValue | undefined>(undefined);
 
-export function ThemeProvider({ children, defaultTheme = 'dark', storageKey = 'clinicos-theme' }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(defaultTheme);
-  const [mounted, setMounted] = useState(false);
+function isTheme(value: string | null): value is Theme {
+  return value === 'dark' || value === 'light' || value === 'system';
+}
+
+export function ThemeProvider({
+  children,
+  defaultTheme = 'dark',
+  storageKey = 'clinicos-theme',
+}: ThemeProviderProps) {
+  const [theme, setThemeState] = useState<Theme>(defaultTheme);
+  const hasLoadedStoredTheme = useRef(false);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem(storageKey) as Theme;
-    if (savedTheme) {
-      setTheme(savedTheme);
-    }
-    setMounted(true);
+    const timer = window.setTimeout(() => {
+      const savedTheme = window.localStorage.getItem(storageKey);
+      hasLoadedStoredTheme.current = true;
+
+      if (isTheme(savedTheme)) {
+        setThemeState(savedTheme);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [storageKey]);
 
   useEffect(() => {
-    if (!mounted) return;
-    
     const root = window.document.documentElement;
     root.classList.remove('light', 'dark');
-    
+
     if (theme === 'system') {
       const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       root.classList.add(systemTheme);
     } else {
       root.classList.add(theme);
     }
-    
-    localStorage.setItem(storageKey, theme);
-  }, [theme, storageKey, mounted]);
+  }, [theme]);
 
-  const value = {
-    theme,
-    setTheme: (t: Theme) => setTheme(t),
-  };
+  const setTheme = useCallback((nextTheme: Theme) => {
+    setThemeState(nextTheme);
+
+    try {
+      window.localStorage.setItem(storageKey, nextTheme);
+      hasLoadedStoredTheme.current = true;
+    } catch {
+      // localStorage can be unavailable in private mode.
+    }
+  }, [storageKey]);
+
+  const value = useMemo(() => ({ theme, setTheme }), [setTheme, theme]);
 
   return (
     <ThemeProviderContext.Provider value={value}>
@@ -59,7 +85,8 @@ export function ThemeProvider({ children, defaultTheme = 'dark', storageKey = 'c
 
 export const useTheme = () => {
   const context = useContext(ThemeProviderContext);
-  if (context === undefined)
+  if (context === undefined) {
     throw new Error('useTheme must be used within a ThemeProvider');
+  }
   return context;
 };

@@ -93,9 +93,13 @@ export default function SuperAdminDashboard() {
 
   useEffect(() => {
     if (packages) {
-      const initial: Record<string, number> = {};
-      packages.forEach((pkg: any) => initial[pkg.id] = pkg.price);
-      setLocalPrices(initial);
+      const timer = window.setTimeout(() => {
+        const initial: Record<string, number> = {};
+        packages.forEach((pkg: any) => initial[pkg.id] = pkg.price);
+        setLocalPrices(initial);
+      }, 0);
+
+      return () => window.clearTimeout(timer);
     }
   }, [packages]);
 

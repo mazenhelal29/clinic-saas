@@ -63,8 +63,9 @@ export default function MedicalRecordsPage() {
         // Update local DB cache with fresh server data
         if (data && data.length > 0) {
           try {
-            const toPut = data.map((r: any) => ({ ...r, _synced: 1 as const }));
-            await offlineDb.medical_records.bulkPut(toPut);
+            const pendingRecords = new Set(await offlineDb.medical_records.where('_synced').equals(0).primaryKeys());
+            const toPut = data.filter((r: any) => !pendingRecords.has(r.id)).map((r: any) => ({ ...r, _synced: 1 as const }));
+            if (toPut.length > 0) await offlineDb.medical_records.bulkPut(toPut);
           } catch (e) {
             console.warn('Failed to cache records locally', e);
           }

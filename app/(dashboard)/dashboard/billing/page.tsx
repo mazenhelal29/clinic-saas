@@ -60,8 +60,9 @@ export default function BillingPage() {
         // Update local DB cache with fresh server data
         if (data && data.length > 0) {
           try {
-            const toPut = data.map((i: any) => ({ ...i, _synced: 1 as const }));
-            await offlineDb.invoices.bulkPut(toPut);
+            const pendingInvoices = new Set(await offlineDb.invoices.where('_synced').equals(0).primaryKeys());
+            const toPut = data.filter((i: any) => !pendingInvoices.has(i.id)).map((i: any) => ({ ...i, _synced: 1 as const }));
+            if (toPut.length > 0) await offlineDb.invoices.bulkPut(toPut);
           } catch (e) {
             console.warn('Failed to cache invoices locally', e);
           }

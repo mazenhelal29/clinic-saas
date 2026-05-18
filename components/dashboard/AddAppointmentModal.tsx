@@ -2,7 +2,7 @@
 
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2, DollarSign, User, AlertCircle } from 'lucide-react';
+import { Loader2, DollarSign, User } from 'lucide-react';
 import { appointmentSchema, type AppointmentInput, type AppointmentFormValues } from '@/lib/validations/appointment';
 import { useAppointments } from '@/hooks/useAppointments';
 import { Button } from '@/components/ui/button';
@@ -39,8 +39,9 @@ export function AddAppointmentModal({ open, onOpenChange }: AddAppointmentModalP
       await createAppointment.mutateAsync(validatedData);
       toast({ title: 'تم الحجز بنجاح', description: 'تم إضافة الموعد وتحديث الإيرادات.' });
       onOpenChange(false);
-    } catch (error: any) {
-      toast({ title: 'خطأ', description: error.message || 'فشل في عملية الحجز.', variant: 'destructive' });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'فشل في عملية الحجز.';
+      toast({ title: 'خطأ', description: message, variant: 'destructive' });
     }
   };
 
@@ -93,8 +94,16 @@ export function AddAppointmentModal({ open, onOpenChange }: AddAppointmentModalP
 
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="outline" className="h-12 px-6 rounded-xl" onClick={() => onOpenChange(false)}>إلغاء</Button>
-            <Button type="submit" disabled={createAppointment.isPending} className="h-12 px-8 rounded-xl bg-primary hover:bg-primary/90 font-black text-white shadow-lg shadow-primary/25">
-              {createAppointment.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'تأكيد الحجز والحفظ'}
+            <Button 
+              type="submit" 
+              disabled={createAppointment.isPending} 
+              className="h-12 px-8 rounded-xl bg-primary hover:bg-primary/90 font-black text-white shadow-lg shadow-primary/25 min-w-[140px]"
+            >
+              {createAppointment.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                'تأكيد الحجز والحفظ'
+              )}
             </Button>
           </div>
         </form>

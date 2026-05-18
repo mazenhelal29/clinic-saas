@@ -8,11 +8,11 @@
 import { useEffect, useState } from 'react';
 
 export function useNetworkStatus() {
-  const [isOnline, setIsOnline] = useState<boolean>(
-    typeof navigator !== 'undefined' ? navigator.onLine : true
-  );
+  const [isOnline, setIsOnline] = useState(true);
 
   useEffect(() => {
+    const initialTimer = window.setTimeout(() => setIsOnline(navigator.onLine), 0);
+
     const handleOnline  = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
@@ -20,6 +20,7 @@ export function useNetworkStatus() {
     window.addEventListener('offline', handleOffline);
 
     return () => {
+      window.clearTimeout(initialTimer);
       window.removeEventListener('online',  handleOnline);
       window.removeEventListener('offline', handleOffline);
     };

@@ -5,9 +5,21 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
 import type { AppointmentInput } from '@/lib/validations/appointment';
+import { generateMRN, withTimeout } from '@/lib/utils';
 
 import offlineDb from '@/lib/db/offline-db';
 import { isEffectivelyOffline } from './useNetworkStatus';
+
+const SUPABASE_TIMEOUT_MS = 8000;
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+  return fallback;
+}
 
 function generateLocalId() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -28,6 +40,69 @@ export function useAppointments() {
 
   const createAppointment = useMutation({
     networkMode: 'always',
+    onMutate: async (data: AppointmentInput) => {
+      const optimisticClinicId = clinicId ?? 'pending-clinic';
+      const now = new Date().toISOString();
+      const optimisticPatientId = generateLocalId();
+      const optimisticAppointment = {
+        id: generateLocalId(),
+        clinic_id: optimisticClinicId,
+        patient_id: optimisticPatientId,
+        manual_patient_name: data.manual_patient_name,
+        start_time: data.start_time,
+        type: data.type,
+        amount: data.amount,
+        notes: data.notes,
+        status: 'scheduled',
+        created_at: now,
+        updated_at: now,
+        _optimistic: true,
+      };
+      const optimisticPatient = {
+        id: optimisticPatientId,
+        clinic_id: optimisticClinicId,
+        full_name: data.manual_patient_name ?? '',
+        phone: '',
+        email: '',
+        gender: 'other',
+        created_at: now,
+        updated_at: now,
+        is_active: true,
+        _optimistic: true,
+      };
+
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: ['appointments'] }),
+        queryClient.cancelQueries({ queryKey: ['dashboard-data'] }),
+        queryClient.cancelQueries({ queryKey: ['patients'] }),
+      ]);
+
+      queryClient.setQueriesData({ queryKey: ['appointments'] }, (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return [optimisticAppointment, ...old];
+      });
+
+      queryClient.setQueriesData({ queryKey: ['patients'] }, (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return [optimisticPatient, ...old];
+      });
+
+      queryClient.setQueriesData({ queryKey: ['dashboard-data'] }, (old: any) => {
+        if (!old || typeof old !== 'object') return old;
+        const latestAppointments = Array.isArray(old.latestAppointments)
+          ? [optimisticAppointment, ...old.latestAppointments].slice(0, 6)
+          : [optimisticAppointment];
+
+        return {
+          ...old,
+          totalPatients: Number(old.totalPatients ?? 0) + 1,
+          totalAppointments: Number(old.totalAppointments ?? 0) + 1,
+          latestAppointments,
+        };
+      });
+
+      return { optimisticAppointmentId: optimisticAppointment.id, optimisticPatientId };
+    },
     mutationFn: async (data: AppointmentInput) => {
       if (await isEffectivelyOffline()) {
         const db = offlineDb;
@@ -48,7 +123,7 @@ export function useAppointments() {
         }
 
         // Save patient locally
-        const localPatientId = generateLocalId();
+        const localPatientId = crypto.randomUUID();
         await db.patients.put({
           id: localPatientId,
           clinic_id: localClinicId,
@@ -135,48 +210,81 @@ export function useAppointments() {
 
       if (!currentClinicId) throw new Error('تعذر العثور على مُعرّف العيادة. يرجى تحديث الصفحة.');
       // 1. Create a patient record first (Auto-registration)
-      const { data: patient, error: pError } = await supabase
-        .from('patients')
-        .insert({
-          clinic_id: currentClinicId,
-          full_name: data.manual_patient_name,
-          phone: '',
-          email: '',
-          gender: 'other',
-          date_of_birth: new Date().toISOString().split('T')[0],
-        })
-        .select()
-        .single();
+      const today = new Date().toISOString().split('T')[0];
+      const patientBase = {
+        clinic_id: currentClinicId,
+        full_name: data.manual_patient_name,
+        phone: '',
+        email: '',
+        gender: 'other',
+      };
+      const patientPayloads = [
+        { ...patientBase, mrn: generateMRN(), is_active: true, dob: today },
+        { ...patientBase, mrn: generateMRN(), is_active: true, date_of_birth: today },
+        { ...patientBase, dob: today },
+        { ...patientBase, date_of_birth: today },
+        patientBase,
+      ];
 
-      if (pError) {
-        console.error('CRITICAL: Error auto-creating patient:', pError.message);
-        // If it fails, we still try to create the appointment to not block the user
-      } else {
-        console.log('Patient auto-created successfully:', patient.id);
+      let patient: { id: string } | null = null;
+      let lastPatientError: unknown = null;
+
+      for (const payload of patientPayloads) {
+        let createdPatient: { id: string } | null = null;
+        let error: unknown = null;
+
+        try {
+          const result = await withTimeout(
+            supabase.from('patients').insert(payload).select('id').single(),
+            SUPABASE_TIMEOUT_MS
+          );
+          createdPatient = result.data;
+          error = result.error;
+        } catch (caughtError) {
+          error = caughtError;
+        }
+
+        if (!error && createdPatient?.id) {
+          patient = createdPatient;
+          break;
+        }
+
+        lastPatientError = error;
+      }
+
+      if (!patient) {
+        throw new Error(getErrorMessage(lastPatientError, 'تعذر إنشاء ملف المريض الجديد.'));
       }
 
       // 2. Ensure doctor_id exists
       let doctorId = data.doctor_id;
       if (!doctorId) {
-        const { data: doctors } = await supabase
-          .from('doctors')
-          .select('id')
-          .eq('clinic_id', currentClinicId)
-          .limit(1);
+        const { data: doctors } = await withTimeout(
+          supabase
+            .from('doctors')
+            .select('id')
+            .eq('clinic_id', currentClinicId)
+            .limit(1),
+          SUPABASE_TIMEOUT_MS
+        );
 
         if (doctors && doctors.length > 0) {
           doctorId = doctors[0].id;
         } else {
           // Auto-create a default doctor if none exists
-          const { data: newDoc } = await supabase
-            .from('doctors')
-            .insert({
-              clinic_id: currentClinicId,
-              full_name: 'طبيب العيادة الأساسي',
-              is_active: true
-            })
-            .select()
-            .single();
+          const { data: newDoc } = await withTimeout(
+            supabase
+              .from('doctors')
+              .insert({
+                clinic_id: currentClinicId,
+                full_name: 'طبيب العيادة الأساسي',
+                specialization: 'عام',
+                is_active: true
+              })
+              .select('id')
+              .single(),
+            SUPABASE_TIMEOUT_MS
+          );
           if (newDoc) doctorId = newDoc.id;
         }
       }
@@ -184,26 +292,48 @@ export function useAppointments() {
       if (!doctorId) throw new Error('لا يوجد طبيب مسجل في العيادة.');
 
       // 3. Create the appointment linked to this new patient and doctor
-      const { error } = await supabase
-        .from('appointments')
-        .insert({
-          clinic_id: currentClinicId,
-          patient_id: patient?.id || null,
-          doctor_id: doctorId,
-          manual_patient_name: data.manual_patient_name,
-          start_time: data.start_time,
-          type: data.type,
-          amount: data.amount,
-          notes: data.notes,
-          status: 'pending',
-        });
+      const appointmentBase = {
+        clinic_id: currentClinicId,
+        patient_id: patient.id,
+        doctor_id: doctorId,
+        manual_patient_name: data.manual_patient_name,
+        start_time: data.start_time,
+        type: data.type,
+        amount: data.amount,
+        notes: data.notes,
+        status: 'scheduled',
+      };
+      const appointmentPayloads = user?.id
+        ? [{ ...appointmentBase, created_by: user.id }, appointmentBase]
+        : [appointmentBase];
 
-      if (error) throw error;
+      let lastAppointmentError: unknown = null;
+
+      for (const payload of appointmentPayloads) {
+        let error: unknown = null;
+
+        try {
+          const result = await withTimeout(
+            supabase.from('appointments').insert(payload).select('id').single(),
+            SUPABASE_TIMEOUT_MS
+          );
+          error = result.error;
+        } catch (caughtError) {
+          error = caughtError;
+        }
+
+        if (!error) return;
+        lastAppointmentError = error;
+      }
+
+      throw new Error(getErrorMessage(lastAppointmentError, 'تعذر إنشاء الحجز.'));
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['appointments', clinicId] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard-data', clinicId] });
-      queryClient.invalidateQueries({ queryKey: ['patients', clinicId] });
+      queryClient.refetchQueries({ queryKey: ['appointments'] });
+      queryClient.refetchQueries({ queryKey: ['dashboard-data'] });
+      queryClient.refetchQueries({ queryKey: ['patients'] });
+      queryClient.refetchQueries({ queryKey: ['today-waiting-queue'] });
+      queryClient.refetchQueries({ queryKey: ['reports-data'] });
 
       const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
       toast({
@@ -213,10 +343,35 @@ export function useAppointments() {
           : 'تم تسجيل المريض والموعد في النظام تلقائياً.',
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown, _data, context) => {
+      if (context?.optimisticAppointmentId) {
+        queryClient.setQueriesData({ queryKey: ['appointments'] }, (old: any) => {
+          if (!Array.isArray(old)) return old;
+          return old.filter((appointment) => appointment.id !== context.optimisticAppointmentId);
+        });
+        queryClient.setQueriesData({ queryKey: ['dashboard-data'] }, (old: any) => {
+          if (!old || typeof old !== 'object') return old;
+          return {
+            ...old,
+            totalPatients: Math.max(0, Number(old.totalPatients ?? 0) - 1),
+            totalAppointments: Math.max(0, Number(old.totalAppointments ?? 0) - 1),
+            latestAppointments: Array.isArray(old.latestAppointments)
+              ? old.latestAppointments.filter((appointment: any) => appointment.id !== context.optimisticAppointmentId)
+              : old.latestAppointments,
+          };
+        });
+      }
+
+      if (context?.optimisticPatientId) {
+        queryClient.setQueriesData({ queryKey: ['patients'] }, (old: any) => {
+          if (!Array.isArray(old)) return old;
+          return old.filter((patient) => patient.id !== context.optimisticPatientId);
+        });
+      }
+
       toast({
         title: 'خطأ في الحجز',
-        description: error.message,
+        description: getErrorMessage(error, 'تعذر إنشاء الحجز.'),
         variant: 'destructive',
       });
     },
@@ -226,5 +381,3 @@ export function useAppointments() {
     createAppointment,
   };
 }
-
-

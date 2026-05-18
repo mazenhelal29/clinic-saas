@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  --font-cairo: var(--font-cairo);
-  --font-inter: var(--font-inter);
+  --font-cairo: "Cairo", "Segoe UI", Tahoma, Arial, sans-serif;
+  --font-inter: Inter, "Segoe UI", Arial, sans-serif;
 
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));

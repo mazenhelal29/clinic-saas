@@ -22,7 +22,7 @@ function generateLocalId() {
 }
 
 export function useDoctors() {
-  const { clinicId } = useAuth();
+  const { clinicId, loading: authLoading } = useAuth();
   const supabase = createClient();
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -57,8 +57,9 @@ export function useDoctors() {
 
         // Update local DB cache with fresh server data
         if (data && data.length > 0) {
-          const toPut = data.map((d: any) => ({ ...d, _synced: 1 as const }));
-          await offlineDb.doctors.bulkPut(toPut);
+          const pendingDoctors = new Set(await offlineDb.doctors.where('_synced').equals(0).primaryKeys());
+          const toPut = data.filter((d: any) => !pendingDoctors.has(d.id)).map((d: any) => ({ ...d, _synced: 1 as const }));
+          if (toPut.length > 0) await offlineDb.doctors.bulkPut(toPut);
         }
 
         // Merge unsynced local doctors
@@ -129,7 +130,7 @@ export function useDoctors() {
       return data as Doctor;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['doctors', clinicId] });
+      qc.invalidateQueries({ queryKey: ['doctors'] });
       const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
       if (isOffline) {
         toast({ title: 'تم الحفظ محلياً ✓', description: 'سيتم المزامنة تلقائياً.' });
@@ -169,7 +170,7 @@ export function useDoctors() {
       return data as Doctor;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['doctors', clinicId] });
+      qc.invalidateQueries({ queryKey: ['doctors'] });
       const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
       if (isOffline) {
         toast({ title: 'تم التحديث محلياً ✓', description: 'سيتم المزامنة تلقائياً.' });
@@ -197,11 +198,13 @@ export function useDoctors() {
         .from('doctors')
         .update({ is_active: false })
         .eq('id', id)
-        .eq('clinic_id', clinicId!);
+        .eq('clinic_id', clinicId!)
+        .select('id')
+        .single();
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['doctors', clinicId] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['doctors'] }),
   });
 
-  return { doctors, isLoading, createDoctor, updateDoctor, deleteDoctor };
+  return { doctors, isLoading: authLoading || !clinicId || isLoading, createDoctor, updateDoctor, deleteDoctor };
 }
